@@ -1259,7 +1259,7 @@ btnUploadServer.addEventListener(
         await supabaseClient
           .storage
           .from(
-            "nail-images"
+            "nail-image"
           )
           .upload(
 
@@ -1300,7 +1300,7 @@ btnUploadServer.addEventListener(
         supabaseClient
           .storage
           .from(
-            "nail-images"
+            "nail-image"
           )
           .getPublicUrl(
             fileName
