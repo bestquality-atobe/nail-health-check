@@ -1,25 +1,36 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="utf-8" />
+
   <meta
     name="viewport"
     content="width=device-width,initial-scale=1,viewport-fit=cover"
   />
 
-  <title>Nail Camera with Overlay</title>
+  <title>爪の健康チェック</title>
 
-  <!-- LIFF SDK -->
+  <!-- LINE LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
+
     html,
     body {
       height: 100%;
       margin: 0;
       background: #000;
       color: #fff;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-family:
+        system-ui,
+        -apple-system,
+        "Segoe UI",
+        Roboto,
+        sans-serif;
     }
 
     .app {
@@ -42,10 +53,13 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      transform: scaleX(var(--mirror, 1));
+
+      transform:
+        scaleX(
+          var(--mirror, 1)
+        );
     }
 
-    /* ガイドオーバーレイ */
     .overlay {
       position: absolute;
       inset: 0;
@@ -56,18 +70,23 @@
       display: none;
     }
 
-    /* 下部バー */
     .controls {
       display: flex;
       gap: 0.5rem;
+
       padding:
-        0.75rem env(safe-area-inset-right)
-        0.9rem env(safe-area-inset-left);
-      background: linear-gradient(
-        to top,
-        rgba(0, 0, 0, 0.8),
-        rgba(0, 0, 0, 0)
-      );
+        0.75rem
+        env(safe-area-inset-right)
+        0.9rem
+        env(safe-area-inset-left);
+
+      background:
+        linear-gradient(
+          to top,
+          rgba(0,0,0,.8),
+          rgba(0,0,0,0)
+        );
+
       align-items: center;
       justify-content: center;
       flex-wrap: wrap;
@@ -77,13 +96,27 @@
     select {
       background: #111;
       color: #fff;
-      border: 1px solid #444;
-      border-radius: 14px;
-      padding: 0.5rem 0.8rem;
+
+      border:
+        1px solid #444;
+
+      border-radius:
+        14px;
+
+      padding:
+        0.55rem 0.85rem;
+
+      font-size:
+        14px;
     }
 
     button:active {
-      transform: scale(0.98);
+      transform:
+        scale(.98);
+    }
+
+    button:disabled {
+      opacity: .5;
     }
 
     #shot {
@@ -91,920 +124,1303 @@
       border-color: #888;
     }
 
+    #uploadServer {
+      background: #00b900;
+      border-color: #00b900;
+      font-weight: 700;
+    }
+
     .thumb {
       width: 96px;
       height: 96px;
+
       object-fit: cover;
-      border-radius: 10px;
-      border: 1px solid #444;
+
+      border-radius:
+        10px;
+
+      border:
+        1px solid #444;
     }
 
     .row {
       display: flex;
       gap: 0.5rem;
+
       align-items: center;
       justify-content: center;
+
       width: 100%;
+
+      flex-wrap: wrap;
     }
 
     .note {
-      font-size: 0.8rem;
-      opacity: 0.8;
-      text-align: center;
-      padding: 0.3rem 0 0.6rem;
+      font-size:
+        0.8rem;
+
+      opacity:
+        0.8;
+
+      text-align:
+        center;
+
+      padding:
+        0.3rem
+        0.5rem
+        0.6rem;
     }
+
+    #status {
+      font-size:
+        0.8rem;
+
+      text-align:
+        center;
+
+      min-height:
+        1.2rem;
+
+      padding:
+        0.2rem 0.5rem;
+
+      color:
+        #b7ffb7;
+    }
+
   </style>
+
 </head>
+
 
 <body>
 
-  <div class="app">
 
-    <div class="stage">
+<div class="app">
 
-      <video
-        id="v"
-        autoplay
-        playsinline
-      ></video>
 
-      <!--
-        ガイド
-        中心線 + 爪枠 + グリッド
-        transformで回転・拡大縮小
-      -->
-      <svg
-        id="guide"
-        class="overlay"
-        viewBox="0 0 1000 1000"
-        preserveAspectRatio="none"
-      >
+  <!-- カメラ表示領域 -->
+  <div class="stage">
 
-        <!-- 外周の安全マージン -->
-        <rect
-          x="30"
-          y="60"
-          width="940"
-          height="880"
-          fill="none"
-          stroke="rgba(255,255,255,.25)"
-          stroke-width="2"
-          stroke-dasharray="8 10"
-        />
+    <video
+      id="v"
+      autoplay
+      playsinline>
+    </video>
 
-        <!-- 3分割グリッド -->
-        <g id="grid">
 
-          <line
-            x1="333"
-            y1="60"
-            x2="333"
-            y2="940"
-            stroke="rgba(255,255,255,.15)"
-            stroke-width="2"
-          />
+    <!-- 爪位置ガイド -->
+    <svg
+      id="guide"
+      class="overlay"
+      viewBox="0 0 1000 1000"
+      preserveAspectRatio="none">
 
-          <line
-            x1="666"
-            y1="60"
-            x2="666"
-            y2="940"
-            stroke="rgba(255,255,255,.15)"
-            stroke-width="2"
-          />
 
-          <line
-            x1="30"
-            y1="353"
-            x2="970"
-            y2="353"
-            stroke="rgba(255,255,255,.15)"
-            stroke-width="2"
-          />
+      <!-- 外周 -->
+      <rect
+        x="30"
+        y="60"
+        width="940"
+        height="880"
+        fill="none"
+        stroke="rgba(255,255,255,.25)"
+        stroke-width="2"
+        stroke-dasharray="8 10"
+      />
 
-          <line
-            x1="30"
-            y1="646"
-            x2="970"
-            y2="646"
-            stroke="rgba(255,255,255,.15)"
-            stroke-width="2"
-          />
 
-        </g>
+      <!-- グリッド -->
+      <g id="grid">
 
-        <!-- 中央ガイド -->
         <line
-          x1="500"
-          y1="100"
-          x2="500"
-          y2="900"
-          stroke="rgba(255,255,255,.65)"
+          x1="333"
+          y1="60"
+          x2="333"
+          y2="940"
+          stroke="rgba(255,255,255,.15)"
           stroke-width="2"
         />
 
         <line
-          x1="120"
-          y1="500"
-          x2="880"
-          y2="500"
-          stroke="rgba(255,255,255,.65)"
+          x1="666"
+          y1="60"
+          x2="666"
+          y2="940"
+          stroke="rgba(255,255,255,.15)"
           stroke-width="2"
         />
 
-        <!-- 爪の推奨枠 -->
-        <ellipse
-          id="nail"
-          cx="500"
-          cy="530"
-          rx="180"
-          ry="260"
-          fill="none"
-          stroke="rgba(0,200,255,.9)"
-          stroke-width="3"
-        />
-
-        <!-- 爪先端 -->
         <line
-          x1="320"
-          y1="380"
-          x2="680"
-          y2="380"
-          stroke="white"
+          x1="30"
+          y1="353"
+          x2="970"
+          y2="353"
+          stroke="rgba(255,255,255,.15)"
           stroke-width="2"
-          stroke-dasharray="6 10"
         />
 
-        <!-- 爪根元 -->
         <line
-          x1="320"
-          y1="680"
-          x2="680"
-          y2="680"
-          stroke="rgba(0,200,255,.9)"
+          x1="30"
+          y1="646"
+          x2="970"
+          y2="646"
+          stroke="rgba(255,255,255,.15)"
           stroke-width="2"
-          stroke-dasharray="6 10"
         />
 
-      </svg>
+      </g>
 
-    </div>
 
-    <div class="note">
-      爪の先端が上の点線、根元が下の点線に重なるように
-      中央の楕円に合わせてください。
-    </div>
+      <!-- 中央線 -->
+      <line
+        x1="500"
+        y1="100"
+        x2="500"
+        y2="900"
+        stroke="rgba(255,255,255,.65)"
+        stroke-width="2"
+      />
 
-    <div class="controls">
+      <line
+        x1="120"
+        y1="500"
+        x2="880"
+        y2="500"
+        stroke="rgba(255,255,255,.65)"
+        stroke-width="2"
+      />
 
-      <div class="row">
 
-        <button id="toggleGuide">
-          ガイドON/OFF
-        </button>
+      <!-- 爪ガイド -->
+      <ellipse
+        id="nail"
+        cx="500"
+        cy="530"
+        rx="180"
+        ry="260"
+        fill="none"
+        stroke="rgba(0,200,255,.9)"
+        stroke-width="3"
+      />
 
-        <button id="rotate">
-          回転90°
-        </button>
 
-        <label>
-          サイズ:
+      <!-- 爪先端 -->
+      <line
+        x1="320"
+        y1="380"
+        x2="680"
+        y2="380"
+        stroke="white"
+        stroke-width="2"
+        stroke-dasharray="6 10"
+      />
 
-          <select id="scale">
 
-            <option value="1">
-              100%
-            </option>
+      <!-- 爪根元 -->
+      <line
+        x1="320"
+        y1="680"
+        x2="680"
+        y2="680"
+        stroke="rgba(0,200,255,.9)"
+        stroke-width="2"
+        stroke-dasharray="6 10"
+      />
 
-            <option value="1.1">
-              110%
-            </option>
-
-            <option value="1.25">
-              125%
-            </option>
-
-            <option value="1.5">
-              150%
-            </option>
-
-          </select>
-
-        </label>
-
-        <button id="mirror">
-          ミラー
-        </button>
-
-      </div>
-
-      <div class="row">
-
-        <button id="shot">
-          撮影
-        </button>
-
-        <button id="download">
-          保存
-        </button>
-
-        <input
-          id="upload"
-          type="file"
-          accept="image/*"
-          capture="environment"
-          style="display:none"
-        />
-
-        <img
-          id="thumb"
-          class="thumb"
-          alt="thumb preview"
-        />
-
-      </div>
-
-    </div>
+    </svg>
 
   </div>
 
-  <canvas
-    id="work"
-    style="display:none"
-  ></canvas>
 
-  <script>
+  <div class="note">
+    爪の先端が上の点線、根元が下の点線に重なるように
+    中央の楕円に合わせてください。
+  </div>
 
-    /*
-    ========================================
-    LIFF初期化
-    ========================================
-    */
 
-    async function initializeLiff() {
+  <!-- 保存状態 -->
+  <div id="status"></div>
 
-      try {
 
-        await liff.init({
-          liffId: "https://miniapp.line.me/2007511299-b8maVL7l"
-        });
+  <!-- 操作ボタン -->
+  <div class="controls">
 
-        console.log("LIFF initialized");
 
-        if (liff.isInClient()) {
+    <div class="row">
 
-          console.log(
-            "LINEアプリ内で起動しています"
-          );
+      <button id="toggleGuide">
+        ガイドON/OFF
+      </button>
 
-        } else {
+      <button id="rotate">
+        回転90°
+      </button>
 
-          console.log(
-            "外部ブラウザで起動しています"
-          );
+      <label>
+        サイズ:
 
-        }
+        <select id="scale">
 
-      } catch (error) {
+          <option value="1">
+            100%
+          </option>
 
-        console.error(
-          "LIFF initialization failed",
-          error
-        );
+          <option value="1.1">
+            110%
+          </option>
 
-      }
+          <option value="1.25">
+            125%
+          </option>
+
+          <option value="1.5">
+            150%
+          </option>
+
+        </select>
+
+      </label>
+
+      <button id="mirror">
+        ミラー
+      </button>
+
+    </div>
+
+
+    <div class="row">
+
+      <button id="shot">
+        撮影
+      </button>
+
+      <button id="uploadServer">
+        サーバー保存
+      </button>
+
+      <button id="download">
+        端末保存
+      </button>
+
+      <img
+        id="thumb"
+        class="thumb"
+        alt="撮影画像"
+      />
+
+    </div>
+
+
+  </div>
+
+
+</div>
+
+
+<!-- 作業用Canvas -->
+<canvas
+  id="work"
+  style="display:none">
+</canvas>
+
+
+
+<script>
+
+
+/*
+==================================================
+1. Supabase設定
+==================================================
+*/
+
+
+const SUPABASE_URL =
+  "https://zsaqzwxuheqpzhlndjac.supabase.co";
+
+
+const SUPABASE_PUBLISHABLE_KEY =
+  "sb_publishable_XUxyvjJuEOw3892kmFmdHQ_bZdAgFT3";
+
+
+const supabaseClient =
+  supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
+
+
+
+/*
+==================================================
+2. LIFF初期化
+==================================================
+*/
+
+
+async function initializeLiff() {
+
+  try {
+
+    await liff.init({
+
+      liffId:
+        "https://miniapp.line.me/2007511299-b8maVL7l"
+
+    });
+
+
+    console.log(
+      "LIFF initialized"
+    );
+
+
+    if (
+      liff.isInClient()
+    ) {
+
+      console.log(
+        "LINEアプリ内で起動しています"
+      );
+
+    } else {
+
+      console.log(
+        "外部ブラウザで起動しています"
+      );
 
     }
 
-    initializeLiff();
+
+  } catch (error) {
+
+    console.error(
+      "LIFF initialization failed",
+      error
+    );
+
+  }
+
+}
+
+
+initializeLiff();
+
+
+
+/*
+==================================================
+3. DOM取得
+==================================================
+*/
+
+
+const v =
+  document.getElementById(
+    "v"
+  );
+
+
+const guide =
+  document.getElementById(
+    "guide"
+  );
+
+
+const work =
+  document.getElementById(
+    "work"
+  );
+
+
+const thumb =
+  document.getElementById(
+    "thumb"
+  );
+
+
+const statusText =
+  document.getElementById(
+    "status"
+  );
+
+
+const btnToggle =
+  document.getElementById(
+    "toggleGuide"
+  );
+
+
+const btnRotate =
+  document.getElementById(
+    "rotate"
+  );
+
+
+const btnMirror =
+  document.getElementById(
+    "mirror"
+  );
+
+
+const selScale =
+  document.getElementById(
+    "scale"
+  );
+
+
+const btnShot =
+  document.getElementById(
+    "shot"
+  );
+
+
+const btnUploadServer =
+  document.getElementById(
+    "uploadServer"
+  );
+
+
+const btnDownload =
+  document.getElementById(
+    "download"
+  );
+
+
+
+/*
+==================================================
+4. 状態
+==================================================
+*/
+
+
+let rotation =
+  0;
+
+
+let scale =
+  1.0;
+
+
+let mirrored =
+  false;
+
+
+/*
+撮影した画像を保持
+*/
+let capturedDataUrl =
+  null;
+
+
+
+/*
+==================================================
+5. カメラ起動
+==================================================
+*/
+
+
+async function startCamera() {
+
+  try {
+
+    const stream =
+      await navigator.mediaDevices
+        .getUserMedia({
+
+          video: {
+
+            facingMode:
+              "environment",
+
+            width: {
+              ideal: 1920
+            },
+
+            height: {
+              ideal: 1080
+            }
+
+          },
+
+          audio: false
+
+        });
+
+
+    v.srcObject =
+      stream;
+
+
+  } catch (error) {
+
+    alert(
+      "カメラ起動に失敗しました: "
+      +
+      error.message
+    );
+
+  }
+
+}
+
+
+startCamera();
+
+
+
+/*
+==================================================
+6. ガイドON/OFF
+==================================================
+*/
+
+
+btnToggle.addEventListener(
+
+  "click",
+
+  () => {
+
+    guide.classList.toggle(
+      "hidden"
+    );
+
+
+    btnToggle.textContent =
+
+      guide.classList.contains(
+        "hidden"
+      )
+
+      ? "ガイドON"
+
+      : "ガイドOFF";
+
+  }
+
+);
+
+
+
+/*
+==================================================
+7. ガイド回転
+==================================================
+*/
+
+
+btnRotate.addEventListener(
+
+  "click",
+
+  () => {
+
+    rotation =
+      (rotation + 90)
+      %
+      360;
+
+
+    guide.style.transform =
+      `rotate(${rotation}deg)
+       scale(${scale})`;
+
+  }
+
+);
+
+
+
+/*
+==================================================
+8. ガイドサイズ変更
+==================================================
+*/
+
+
+selScale.addEventListener(
+
+  "change",
+
+  () => {
+
+    scale =
+      parseFloat(
+        selScale.value
+      );
+
+
+    guide.style.transform =
+      `rotate(${rotation}deg)
+       scale(${scale})`;
+
+  }
+
+);
+
+
+
+/*
+==================================================
+9. ミラー
+==================================================
+*/
+
+
+btnMirror.addEventListener(
+
+  "click",
+
+  () => {
+
+    mirrored =
+      !mirrored;
+
+
+    v.style.setProperty(
+
+      "--mirror",
+
+      mirrored
+        ? "-1"
+        : "1"
+
+    );
+
+  }
+
+);
+
+
+
+/*
+==================================================
+10. 撮影
+==================================================
+*/
+
+
+btnShot.addEventListener(
+
+  "click",
+
+  () => {
+
+
+    const vw =
+      v.videoWidth;
+
+
+    const vh =
+      v.videoHeight;
+
+
+    if (
+      !vw
+      ||
+      !vh
+    ) {
+
+      alert(
+        "カメラ準備中です。少し待ってから再試行してください。"
+      );
+
+      return;
+
+    }
+
+
+    const outW =
+      1080;
+
+
+    const outH =
+      1440;
+
+
+    work.width =
+      outW;
+
+
+    work.height =
+      outH;
+
+
+    const ctx =
+      work.getContext(
+        "2d"
+      );
+
+
+    ctx.save();
+
+
+    ctx.fillStyle =
+      "#000";
+
+
+    ctx.fillRect(
+      0,
+      0,
+      outW,
+      outH
+    );
+
+
+    ctx.translate(
+      outW / 2,
+      outH / 2
+    );
+
+
+    if (
+      rotation
+    ) {
+
+      ctx.rotate(
+        rotation
+        *
+        Math.PI
+        /
+        180
+      );
+
+    }
+
+
+    if (
+      mirrored
+    ) {
+
+      ctx.scale(
+        -1,
+        1
+      );
+
+    }
+
+
+    const videoRatio =
+      vw
+      /
+      vh;
+
+
+    const canvasRatio =
+      outW
+      /
+      outH;
+
+
+    let dw;
+
+    let dh;
+
+
+    if (
+      videoRatio
+      >
+      canvasRatio
+    ) {
+
+      dh =
+        outH;
+
+      dw =
+        dh
+        *
+        videoRatio;
+
+    } else {
+
+      dw =
+        outW;
+
+      dh =
+        dw
+        /
+        videoRatio;
+
+    }
+
+
+    ctx.drawImage(
+
+      v,
+
+      -dw / 2,
+      -dh / 2,
+
+      dw,
+      dh
+
+    );
+
+
+    ctx.restore();
+
 
 
     /*
-    ========================================
-    画面向き
-    ========================================
+    -----------------------------------
+    爪部分のトリミング
+    -----------------------------------
     */
+
+
+    const rx =
+      180;
+
+
+    const ry =
+      260;
+
+
+    const cropRect = {
+
+      x:
+        Math.round(
+          (500 - rx)
+          /
+          1000
+          *
+          outW
+        ),
+
+      y:
+        Math.round(
+          (530 - ry)
+          /
+          1000
+          *
+          outH
+        ),
+
+      w:
+        Math.round(
+          (2 * rx)
+          /
+          1000
+          *
+          outW
+        ),
+
+      h:
+        Math.round(
+          (2 * ry)
+          /
+          1000
+          *
+          outH
+        )
+
+    };
+
+
+    const sq =
+      Math.max(
+        cropRect.w,
+        cropRect.h
+      );
+
+
+    const out2 =
+      document.createElement(
+        "canvas"
+      );
+
+
+    out2.width =
+      1024;
+
+
+    out2.height =
+      1024;
+
+
+    const c2 =
+      out2.getContext(
+        "2d"
+      );
+
+
+    c2.imageSmoothingEnabled =
+      true;
+
+
+    c2.drawImage(
+
+      work,
+
+      cropRect.x,
+      cropRect.y,
+      cropRect.w,
+      cropRect.h,
+
+      (
+        1024
+        -
+        (
+          cropRect.w
+          *
+          1024
+          /
+          sq
+        )
+      )
+      /
+      2,
+
+      (
+        1024
+        -
+        (
+          cropRect.h
+          *
+          1024
+          /
+          sq
+        )
+      )
+      /
+      2,
+
+      cropRect.w
+      *
+      1024
+      /
+      sq,
+
+      cropRect.h
+      *
+      1024
+      /
+      sq
+
+    );
+
+
+    capturedDataUrl =
+      out2.toDataURL(
+        "image/png",
+        1.0
+      );
+
+
+    thumb.src =
+      capturedDataUrl;
+
+
+    statusText.textContent =
+      "撮影しました。内容を確認して「サーバー保存」を押してください。";
+
+
+  }
+
+);
+
+
+
+/*
+==================================================
+11. Data URL → Blob変換
+==================================================
+*/
+
+
+function dataURLtoBlob(
+  dataUrl
+) {
+
+
+  const parts =
+    dataUrl.split(
+      ","
+    );
+
+
+  const mimeMatch =
+    parts[0].match(
+      /:(.*?);/
+    );
+
+
+  const mime =
+    mimeMatch
+      ? mimeMatch[1]
+      : "image/png";
+
+
+  const binary =
+    atob(
+      parts[1]
+    );
+
+
+  const array =
+    new Uint8Array(
+      binary.length
+    );
+
+
+  for (
+    let i = 0;
+    i < binary.length;
+    i++
+  ) {
+
+    array[i] =
+      binary.charCodeAt(
+        i
+      );
+
+  }
+
+
+  return new Blob(
+
+    [array],
+
+    {
+      type:
+        mime
+    }
+
+  );
+
+}
+
+
+
+/*
+==================================================
+12. Supabaseへ保存
+==================================================
+*/
+
+
+btnUploadServer.addEventListener(
+
+  "click",
+
+  async () => {
+
+
+    if (
+      !capturedDataUrl
+    ) {
+
+      alert(
+        "まず爪を撮影してください。"
+      );
+
+      return;
+
+    }
+
 
     try {
 
+
+      btnUploadServer.disabled =
+        true;
+
+
+      btnUploadServer.textContent =
+        "保存中...";
+
+
+      statusText.textContent =
+        "サーバーへ保存しています...";
+
+
+      const blob =
+        dataURLtoBlob(
+          capturedDataUrl
+        );
+
+
+      /*
+      ファイル名を現在日時から生成
+      */
+      const fileName =
+        `nail-${Date.now()}.png`;
+
+
+      const {
+        data,
+        error
+      } =
+
+        await supabaseClient
+          .storage
+          .from(
+            "nail-images"
+          )
+          .upload(
+
+            fileName,
+
+            blob,
+
+            {
+
+              contentType:
+                "image/png",
+
+              upsert:
+                false
+
+            }
+
+          );
+
+
       if (
-        screen.orientation &&
-        screen.orientation.lock
+        error
       ) {
 
-        screen.orientation.lock(
-          "portrait"
-        );
+        throw error;
 
       }
 
-    } catch (e) {
+
+      /*
+      Public URL取得
+      */
+      const {
+        data:
+          publicUrlData
+      } =
+
+        supabaseClient
+          .storage
+          .from(
+            "nail-images"
+          )
+          .getPublicUrl(
+            fileName
+          );
+
 
       console.log(
-        "画面向き固定は使用できません"
+        "Saved file:",
+        data
       );
+
+
+      console.log(
+        "Public URL:",
+        publicUrlData.publicUrl
+      );
+
+
+      statusText.textContent =
+        "✓ サーバー保存が完了しました。";
+
+
+      alert(
+        "サーバー保存が完了しました。"
+      );
+
+
+    } catch (
+      error
+    ) {
+
+
+      console.error(
+        error
+      );
+
+
+      statusText.textContent =
+        "保存に失敗しました。";
+
+
+      alert(
+        "保存に失敗しました: "
+        +
+        error.message
+      );
+
+
+    } finally {
+
+
+      btnUploadServer.disabled =
+        false;
+
+
+      btnUploadServer.textContent =
+        "サーバー保存";
+
+
+    }
+
+  }
+
+);
+
+
+
+/*
+==================================================
+13. 端末保存
+==================================================
+*/
+
+
+btnDownload.addEventListener(
+
+  "click",
+
+  () => {
+
+
+    if (
+      !capturedDataUrl
+    ) {
+
+      alert(
+        "まず撮影してください。"
+      );
+
+      return;
 
     }
 
 
-    /*
-    ========================================
-    DOM取得
-    ========================================
-    */
-
-    const v =
-      document.getElementById("v");
-
-    const guide =
-      document.getElementById("guide");
-
-    const grid =
-      document.getElementById("grid");
-
-    const work =
-      document.getElementById("work");
-
-    const thumb =
-      document.getElementById("thumb");
-
-
-    const btnToggle =
-      document.getElementById(
-        "toggleGuide"
-      );
-
-    const btnRotate =
-      document.getElementById(
-        "rotate"
-      );
-
-    const btnMirror =
-      document.getElementById(
-        "mirror"
-      );
-
-    const selScale =
-      document.getElementById(
-        "scale"
-      );
-
-    const btnShot =
-      document.getElementById(
-        "shot"
-      );
-
-    const btnDownload =
-      document.getElementById(
-        "download"
+    const a =
+      document.createElement(
+        "a"
       );
 
 
-    /*
-    ========================================
-    状態管理
-    ========================================
-    */
+    a.href =
+      capturedDataUrl;
 
-    let rotation = 0;
 
-    let scale = 1.0;
+    a.download =
+      "nail.png";
 
-    let mirrored = false;
 
+    a.click();
 
-    /*
-    ========================================
-    カメラ起動
-    ========================================
-    */
 
-    async function startCamera() {
+  }
 
-      try {
+);
 
-        const stream =
-          await navigator.mediaDevices
-            .getUserMedia({
 
-              video: {
 
-                facingMode:
-                  "environment",
+</script>
 
-                width: {
-                  ideal: 1920
-                },
-
-                height: {
-                  ideal: 1080
-                }
-
-              },
-
-              audio: false
-
-            });
-
-        v.srcObject = stream;
-
-      } catch (error) {
-
-        alert(
-          "カメラ起動に失敗しました: "
-          + error.message
-        );
-
-      }
-
-    }
-
-    startCamera();
-
-
-    /*
-    ========================================
-    ガイドON/OFF
-    ========================================
-    */
-
-    btnToggle.addEventListener(
-      "click",
-      () => {
-
-        guide.classList.toggle(
-          "hidden"
-        );
-
-        btnToggle.textContent =
-          guide.classList.contains(
-            "hidden"
-          )
-            ? "ガイドON"
-            : "ガイドOFF";
-
-      }
-    );
-
-
-    /*
-    ========================================
-    ガイド回転
-    ========================================
-    */
-
-    btnRotate.addEventListener(
-      "click",
-      () => {
-
-        rotation =
-          (rotation + 90) % 360;
-
-        guide.style.transform =
-          `rotate(${rotation}deg)
-           scale(${scale})`;
-
-      }
-    );
-
-
-    /*
-    ========================================
-    ガイドサイズ変更
-    ========================================
-    */
-
-    selScale.addEventListener(
-      "change",
-      () => {
-
-        scale =
-          parseFloat(
-            selScale.value
-          );
-
-        guide.style.transform =
-          `rotate(${rotation}deg)
-           scale(${scale})`;
-
-      }
-    );
-
-
-    /*
-    ========================================
-    ミラー
-    ========================================
-    */
-
-    btnMirror.addEventListener(
-      "click",
-      () => {
-
-        mirrored =
-          !mirrored;
-
-        v.style.setProperty(
-          "--mirror",
-          mirrored ? "-1" : "1"
-        );
-
-      }
-    );
-
-
-    /*
-    ========================================
-    撮影
-    ========================================
-    */
-
-    btnShot.addEventListener(
-      "click",
-      () => {
-
-        const vw =
-          v.videoWidth;
-
-        const vh =
-          v.videoHeight;
-
-
-        if (!vw || !vh) {
-
-          alert(
-            "カメラ準備中です。少し待ってから再試行してください。"
-          );
-
-          return;
-
-        }
-
-
-        /*
-        -------------------------
-        出力キャンバス
-        -------------------------
-        */
-
-        const outW = 1080;
-
-        const outH = 1440;
-
-
-        work.width =
-          outW;
-
-        work.height =
-          outH;
-
-
-        const ctx =
-          work.getContext("2d");
-
-
-        ctx.save();
-
-
-        /*
-        -------------------------
-        背景
-        -------------------------
-        */
-
-        ctx.fillStyle =
-          "#000";
-
-        ctx.fillRect(
-          0,
-          0,
-          outW,
-          outH
-        );
-
-
-        /*
-        -------------------------
-        中央基準
-        -------------------------
-        */
-
-        ctx.translate(
-          outW / 2,
-          outH / 2
-        );
-
-
-        if (rotation) {
-
-          ctx.rotate(
-            rotation *
-            Math.PI /
-            180
-          );
-
-        }
-
-
-        if (mirrored) {
-
-          ctx.scale(
-            -1,
-            1
-          );
-
-        }
-
-
-        /*
-        -------------------------
-        cover相当計算
-        -------------------------
-        */
-
-        const videoRatio =
-          vw / vh;
-
-        const canvasRatio =
-          outW / outH;
-
-
-        let dw;
-
-        let dh;
-
-
-        if (
-          videoRatio >
-          canvasRatio
-        ) {
-
-          dh =
-            outH;
-
-          dw =
-            dh *
-            videoRatio;
-
-        } else {
-
-          dw =
-            outW;
-
-          dh =
-            dw /
-            videoRatio;
-
-        }
-
-
-        ctx.drawImage(
-          v,
-          -dw / 2,
-          -dh / 2,
-          dw,
-          dh
-        );
-
-
-        ctx.restore();
-
-
-        /*
-        ========================================
-        中央トリミング
-        ========================================
-        */
-
-        const rx = 180;
-
-        const ry = 260;
-
-
-        const cropRect = {
-
-          x:
-            Math.round(
-              (500 - rx) /
-              1000 *
-              outW
-            ),
-
-          y:
-            Math.round(
-              (530 - ry) /
-              1000 *
-              outH
-            ),
-
-          w:
-            Math.round(
-              (2 * rx) /
-              1000 *
-              outW
-            ),
-
-          h:
-            Math.round(
-              (2 * ry) /
-              1000 *
-              outH
-            )
-
-        };
-
-
-        /*
-        -------------------------
-        正方形サムネイル生成
-        -------------------------
-        */
-
-        const sq =
-          Math.max(
-            cropRect.w,
-            cropRect.h
-          );
-
-
-        const out2 =
-          document.createElement(
-            "canvas"
-          );
-
-
-        out2.width =
-          1024;
-
-        out2.height =
-          1024;
-
-
-        const c2 =
-          out2.getContext(
-            "2d"
-          );
-
-
-        c2.imageSmoothingEnabled =
-          true;
-
-
-        c2.drawImage(
-
-          work,
-
-          cropRect.x,
-          cropRect.y,
-          cropRect.w,
-          cropRect.h,
-
-          (
-            1024 -
-            (
-              cropRect.w *
-              1024 /
-              sq
-            )
-          ) / 2,
-
-          (
-            1024 -
-            (
-              cropRect.h *
-              1024 /
-              sq
-            )
-          ) / 2,
-
-          cropRect.w *
-          1024 /
-          sq,
-
-          cropRect.h *
-          1024 /
-          sq
-
-        );
-
-
-        /*
-        -------------------------
-        サムネイル表示
-        -------------------------
-        */
-
-        const dataUrl =
-          out2.toDataURL(
-            "image/png",
-            1.0
-          );
-
-
-        thumb.src =
-          dataUrl;
-
-
-        /*
-        ========================================
-        将来：
-        サーバーへアップロード
-        ========================================
-
-        fetch(
-          "/upload",
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json"
-            },
-
-            body:
-              JSON.stringify({
-                image:
-                  dataUrl
-              })
-          }
-        )
-        .then(response => {
-
-          if (
-            response.ok
-          ) {
-
-            alert(
-              "アップロード完了"
-            );
-
-          } else {
-
-            alert(
-              "アップロード失敗"
-            );
-
-          }
-
-        })
-        .catch(error => {
-
-          alert(
-            "通信エラー: "
-            + error.message
-          );
-
-        });
-
-        */
-
-      }
-    );
-
-
-    /*
-    ========================================
-    保存
-    ========================================
-    */
-
-    btnDownload.addEventListener(
-      "click",
-      () => {
-
-        if (
-          !thumb.src
-        ) {
-
-          alert(
-            "まず撮影してください。"
-          );
-
-          return;
-
-        }
-
-
-        const a =
-          document.createElement(
-            "a"
-          );
-
-
-        a.href =
-          thumb.src;
-
-
-        a.download =
-          "nail.png";
-
-
-        a.click();
-
-      }
-    );
-
-  </script>
 
 </body>
+
 </html>
