@@ -918,14 +918,28 @@ function renderAiResult(result) {
   `;
 }
 
-async function runAiPrediction(blob) {
-  const formData = new FormData();
-  formData.append("file", blob, "nail.jpg");
+async function runAiPrediction(imageUrl) {
+  if (!imageUrl) {
+    throw new Error("AI判定用の画像URLを取得できませんでした。");
+  }
 
-  const response = await fetch(`${AI_API_BASE_URL}/predict`, {
-    method: "POST",
-    body: formData
-  });
+  let response;
+
+  try {
+    response = await fetch(`${AI_API_BASE_URL}/predict-url`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        image_url: imageUrl
+      })
+    });
+  } catch (networkError) {
+    throw new Error(
+      "AI APIへの通信に失敗しました。ネットワークまたはRenderの状態をご確認ください。"
+    );
+  }
 
   let result = null;
 
@@ -1032,7 +1046,7 @@ btnSaveAll.addEventListener("click", async () => {
     console.log("Saved assessment record:", recordId);
 
     // -----------------------------------------------------
-    // 3) ローカルAI APIへ写真を送信
+    // 3) Supabase上の画像URLをAI APIへ送信
     // -----------------------------------------------------
     statusText.textContent = "3/4 AIモデルで写真を判定しています...";
     aiResult.textContent = "AI判定中です...";
@@ -1046,7 +1060,11 @@ btnSaveAll.addEventListener("click", async () => {
       throw new Error("処理状態更新エラー: " + processingUpdateError.message);
     }
 
-    const prediction = await runAiPrediction(blob);
+    if (!imageUrl) {
+      throw new Error("Supabaseの画像公開URLを取得できませんでした。");
+    }
+
+    const prediction = await runAiPrediction(imageUrl);
 
     // -----------------------------------------------------
     // 4) AI結果を同じSupabaseレコードへ保存
