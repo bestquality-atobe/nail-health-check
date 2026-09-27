@@ -313,8 +313,8 @@
 <div class="page">
   <div class="title">爪の健康チェック</div>
   <p class="subtitle">
-    アンケート回答と爪写真を同じレコードとしてSupabaseに保存します。
-    この段階ではAI判定はまだ実行せず、次のステップで接続します。
+    アンケート回答と爪写真をSupabaseに保存し、続けてAIモデルで写真を判定します。
+    判定結果は同じレコードへ保存され、「推奨アクション」と「メモ」を画面に表示します。
   </p>
 
   <!-- =====================================================
@@ -540,18 +540,18 @@
     <h2>写真とアンケートを保存</h2>
 
     <div class="warning">
-      この段階ではAIによる診断は行いません。保存された写真とアンケートを、次の開発ステップでAI推論APIへ接続します。
+      この機能は試作モデルによる参考判定です。写真だけで病名を確定するものではありません。
+      現在のAIモデルは12枚の学習画像で作成した検証用モデルです。
     </div>
 
-    <button id="saveAll" type="button">写真とアンケートをSupabaseへ保存</button>
+    <button id="saveAll" type="button">保存してAI判定を実行</button>
     <div id="status">準備中...</div>
   </section>
 
   <section class="card">
-    <h2>AI判定結果（次のステップ）</h2>
+    <h2>AI判定結果</h2>
     <div class="result-placeholder" id="aiResult">
-      現在は未接続です。次のステップで、保存した画像とアンケートをAIモデルへ渡し、
-      「推奨アクション」と「メモ」をここに自動表示するようにします。
+      まだ判定されていません。アンケート回答・撮影後に「保存してAI判定を実行」を押してください。
     </div>
   </section>
 </div>
@@ -571,6 +571,10 @@ const LIFF_ID = "2007511299-b8maVL7l";
 const STORAGE_BUCKET = "nail-image";
 const ASSESSMENT_TABLE = "nail_assessments";
 
+// ローカルPCでAI APIを動かす場合
+// LINEスマートフォンから使う段階では、ここを公開HTTPS APIのURLへ変更します。
+const AI_API_BASE_URL = "http://127.0.0.1:8000";
+
 const supabaseClient = supabase.createClient(
   SUPABASE_URL,
   SUPABASE_PUBLISHABLE_KEY
@@ -586,6 +590,7 @@ const work = document.getElementById("work");
 const thumb = document.getElementById("thumb");
 const previewMeta = document.getElementById("previewMeta");
 const statusText = document.getElementById("status");
+const aiResult = document.getElementById("aiResult");
 
 const btnToggle = document.getElementById("toggleGuide");
 const btnRotate = document.getElementById("rotate");
@@ -851,8 +856,99 @@ function extFromBlob(blob) {
   return "jpg";
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function renderAiResult(result) {
+  const confidenceText = typeof result.confidence === "number"
+    ? `${Math.round(result.confidence * 100)}%`
+    : "—";
+
+  const findings = result.findings || {};
+  const findingRows = Object.entries(findings)
+    .sort((a, b) => Number(b[1]) - Number(a[1]))
+    .slice(0, 6)
+    .map(([key, value]) =>
+      `<div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #2d2d2d;">` +
+      `<span>${escapeHtml(key)}</span><strong>${escapeHtml(value)}</strong></div>`
+    )
+    .join("");
+
+  aiResult.innerHTML = `
+    <div style="margin-bottom:12px;">
+      <div class="small">推奨アクション</div>
+      <div style="font-size:1.05rem;font-weight:800;color:#fff;margin-top:4px;">
+        ${escapeHtml(result.recommended_action || "判定結果なし")}
+      </div>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <div class="small">メモ</div>
+      <div style="color:#fff;line-height:1.65;margin-top:4px;">
+        ${escapeHtml(result.memo || "")}
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+      <div style="background:#171717;border:1px solid #333;border-radius:10px;padding:9px;">
+        <div class="small">モデル</div>
+        <strong>${escapeHtml(result.model_version || "—")}</strong>
+      </div>
+      <div style="background:#171717;border:1px solid #333;border-radius:10px;padding:9px;">
+        <div class="small">参考 confidence</div>
+        <strong>${escapeHtml(confidenceText)}</strong>
+      </div>
+    </div>
+
+    ${findingRows ? `
+      <details>
+        <summary style="cursor:pointer;color:#d7d7d7;">写真所見スコアを見る</summary>
+        <div style="margin-top:8px;">${findingRows}</div>
+      </details>` : ""}
+
+    <div class="warning" style="margin-top:12px;">
+      ${escapeHtml(result.disclaimer || "本結果は参考判定であり、医療診断ではありません。")}
+    </div>
+  `;
+}
+
+async function runAiPrediction(blob) {
+  const formData = new FormData();
+  formData.append("file", blob, "nail.jpg");
+
+  const response = await fetch(`${AI_API_BASE_URL}/predict`, {
+    method: "POST",
+    body: formData
+  });
+
+  let result = null;
+
+  try {
+    result = await response.json();
+  } catch (_) {
+    // JSONで返らなかった場合は下でHTTPエラーとして扱う
+  }
+
+  if (!response.ok) {
+    const detail = result?.detail || `HTTP ${response.status}`;
+    throw new Error("AI判定APIエラー: " + detail);
+  }
+
+  if (!result?.success) {
+    throw new Error("AI判定に失敗しました。");
+  }
+
+  return result;
+}
+
 /* =========================================================
-   8. 写真 + アンケートをSupabaseへ保存
+   8. 写真 + アンケート保存 → AI判定 → Supabase更新
    ========================================================= */
 
 btnSaveAll.addEventListener("click", async () => {
@@ -869,18 +965,22 @@ btnSaveAll.addEventListener("click", async () => {
   }
 
   btnSaveAll.disabled = true;
-  btnSaveAll.textContent = "保存中...";
-  statusText.textContent = "写真をSupabase Storageへ保存しています...";
+  btnSaveAll.textContent = "処理中...";
+  aiResult.textContent = "保存後、AI判定を実行します。少しお待ちください...";
+
+  let recordId = null;
 
   try {
-    const recordId = makeRecordId();
+    recordId = makeRecordId();
     const blob = dataURLtoBlob(capturedDataUrl);
     const ext = extFromBlob(blob);
-
-    // 例: assessments/uuid/front.jpg
     const imagePath = `assessments/${recordId}/front.${ext}`;
 
-    // 1) Storageへ画像保存
+    // -----------------------------------------------------
+    // 1) Supabase Storageへ写真保存
+    // -----------------------------------------------------
+    statusText.textContent = "1/4 写真をSupabase Storageへ保存しています...";
+
     const { data: uploadData, error: uploadError } = await supabaseClient
       .storage
       .from(STORAGE_BUCKET)
@@ -893,9 +993,6 @@ btnSaveAll.addEventListener("click", async () => {
       throw new Error("画像保存エラー: " + uploadError.message);
     }
 
-    statusText.textContent = "写真保存完了。アンケートをDatabaseへ保存しています...";
-
-    // Public bucketの場合のみ利用できる表示用URL
     const { data: publicUrlData } = supabaseClient
       .storage
       .from(STORAGE_BUCKET)
@@ -903,7 +1000,11 @@ btnSaveAll.addEventListener("click", async () => {
 
     const imageUrl = publicUrlData?.publicUrl || null;
 
-    // 2) Databaseへ1レコードとして保存
+    // -----------------------------------------------------
+    // 2) アンケートをDatabaseへ保存
+    // -----------------------------------------------------
+    statusText.textContent = "2/4 アンケートをDatabaseへ保存しています...";
+
     const row = {
       id: recordId,
       line_user_id: lineUserId,
@@ -924,28 +1025,79 @@ btnSaveAll.addEventListener("click", async () => {
       .insert(row);
 
     if (insertError) {
-      // Database保存に失敗した場合、Storageに孤児画像が残る可能性がある。
-      // 初心者向けv1ではまずエラー表示し、次回cleanup処理を追加する。
       throw new Error("アンケート保存エラー: " + insertError.message);
     }
 
     console.log("Saved image:", uploadData);
     console.log("Saved assessment record:", recordId);
 
-    statusText.textContent =
-      "✓ 保存完了\n" +
-      `Record ID: ${recordId}\n` +
-      "写真とアンケートが同じレコードに紐づきました。";
+    // -----------------------------------------------------
+    // 3) ローカルAI APIへ写真を送信
+    // -----------------------------------------------------
+    statusText.textContent = "3/4 AIモデルで写真を判定しています...";
+    aiResult.textContent = "AI判定中です...";
 
-    alert("写真とアンケートの保存が完了しました。");
+    const { error: processingUpdateError } = await supabaseClient
+      .from(ASSESSMENT_TABLE)
+      .update({ processing_status: "processing" })
+      .eq("id", recordId);
+
+    if (processingUpdateError) {
+      throw new Error("処理状態更新エラー: " + processingUpdateError.message);
+    }
+
+    const prediction = await runAiPrediction(blob);
+
+    // -----------------------------------------------------
+    // 4) AI結果を同じSupabaseレコードへ保存
+    // -----------------------------------------------------
+    statusText.textContent = "4/4 AI判定結果をSupabaseへ保存しています...";
+
+    const { error: updateError } = await supabaseClient
+      .from(ASSESSMENT_TABLE)
+      .update({
+        processing_status: "completed",
+        recommended_action: prediction.recommended_action || null,
+        memo: prediction.memo || null,
+        model_version: prediction.model_version || null
+      })
+      .eq("id", recordId);
+
+    if (updateError) {
+      throw new Error("AI結果保存エラー: " + updateError.message);
+    }
+
+    renderAiResult(prediction);
+
+    statusText.textContent =
+      "✓ すべて完了しました。\n" +
+      `Record ID: ${recordId}\n` +
+      "写真・アンケート・AI判定結果を同じレコードに保存しました。";
 
   } catch (error) {
     console.error(error);
-    statusText.textContent = "保存に失敗しました。\n" + error.message;
-    alert("保存に失敗しました: " + error.message);
+
+    // 既にレコードが作成されている場合は、AI失敗状態を記録する
+    if (recordId) {
+      try {
+        await supabaseClient
+          .from(ASSESSMENT_TABLE)
+          .update({ processing_status: "ai_error" })
+          .eq("id", recordId);
+      } catch (_) {
+        // エラー表示を優先するため、ここでは何もしない
+      }
+    }
+
+    statusText.textContent = "処理に失敗しました。\n" + error.message;
+    aiResult.innerHTML =
+      `<div style="color:#ffb0b0;font-weight:700;">AI判定を完了できませんでした。</div>` +
+      `<div style="margin-top:7px;">${escapeHtml(error.message)}</div>`;
+
+    alert("処理に失敗しました: " + error.message);
   } finally {
     btnSaveAll.disabled = false;
-    btnSaveAll.textContent = "写真とアンケートをSupabaseへ保存";
+    btnSaveAll.textContent = "保存してAI判定を実行";
   }
 });
 
