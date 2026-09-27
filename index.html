@@ -5,333 +5,684 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>爪の健康チェック</title>
 
+  <!-- LINE LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     :root {
-      --bg:#0a0a0a;
-      --card:#171717;
-      --line:#333;
-      --text:#fff;
-      --muted:#aaa;
-      --green:#00b900;
-      --cyan:#00c8ff;
+      --bg: #0b0b0b;
+      --card: #171717;
+      --card2: #202020;
+      --text: #ffffff;
+      --muted: #b7b7b7;
+      --line: #363636;
+      --accent: #00b900;
+      --accent2: #16d45c;
+      --danger: #ff6b6b;
+      --info: #62c7ff;
     }
-    * { box-sizing:border-box; }
-    html,body { margin:0; min-height:100%; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
-    button,select,input { font:inherit; }
-    .screen { min-height:100vh; }
-    .hidden { display:none !important; }
 
-    /* Camera */
-    #cameraScreen { display:flex; flex-direction:column; min-height:100vh; }
-    .stage { position:relative; flex:1; min-height:52vh; overflow:hidden; background:#000; }
-    video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scaleX(var(--mirror,1)); }
-    .overlay { position:absolute; inset:0; pointer-events:none; }
-    .note { font-size:.82rem; opacity:.85; text-align:center; padding:.55rem .75rem; }
-    .controls { padding:.65rem .75rem calc(.9rem + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:.55rem; }
-    .row { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; justify-content:center; }
-    button,select { background:#171717; color:#fff; border:1px solid #444; border-radius:12px; padding:.68rem .9rem; }
-    button:disabled { opacity:.5; }
-    #shot { font-weight:700; }
-    #nextToQuestions { background:var(--green); border-color:var(--green); font-weight:700; }
-    .thumb { width:88px; height:88px; object-fit:cover; border-radius:10px; border:1px solid #444; display:none; }
-    #status { min-height:1.3rem; text-align:center; font-size:.82rem; color:#b7ffb7; padding:0 .75rem; }
+    * { box-sizing: border-box; }
 
-    /* Questionnaire */
-    #questionScreen { padding:18px 16px calc(32px + env(safe-area-inset-bottom)); background:#f7f7f7; color:#202020; }
-    .q-wrap { max-width:640px; margin:0 auto; }
-    .q-title { margin:0 0 4px; font-size:1.45rem; }
-    .q-sub { margin:0 0 18px; color:#666; font-size:.9rem; line-height:1.55; }
-    .preview-box { display:flex; gap:12px; align-items:center; background:#fff; border:1px solid #e5e5e5; border-radius:14px; padding:12px; margin-bottom:14px; }
-    #questionThumb { width:78px; height:78px; object-fit:cover; border-radius:10px; background:#ddd; }
-    .preview-text { font-size:.88rem; color:#555; line-height:1.45; }
-    .q-card { background:#fff; border:1px solid #e5e5e5; border-radius:14px; padding:14px; margin:10px 0; }
-    .q-label { display:block; font-weight:700; margin-bottom:9px; line-height:1.4; }
-    .q-card select { width:100%; background:#fff; color:#222; border:1px solid #ccc; padding:12px; }
-    .choices { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
-    .choices.three { grid-template-columns:repeat(3,minmax(0,1fr)); }
-    .choice input { position:absolute; opacity:0; pointer-events:none; }
-    .choice span { display:flex; min-height:44px; align-items:center; justify-content:center; text-align:center; padding:8px 6px; border:1px solid #ccc; border-radius:10px; background:#fff; color:#333; }
-    .choice input:checked + span { border-color:var(--green); background:#edffed; color:#087808; font-weight:700; }
-    .consent { display:flex; gap:10px; align-items:flex-start; line-height:1.5; font-size:.88rem; }
-    .consent input { margin-top:3px; transform:scale(1.2); }
-    .action-row { display:flex; gap:10px; margin-top:16px; }
-    .action-row button { flex:1; min-height:48px; }
-    #backToCamera { background:#fff; color:#333; border-color:#ccc; }
-    #submitSample { background:var(--green); border-color:var(--green); font-weight:700; }
-    #formStatus { text-align:center; min-height:1.5rem; margin-top:12px; font-size:.9rem; }
-    .success { color:#087808; }
-    .error { color:#c62828; }
-    .required::after { content:" *"; color:#d32f2f; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body { min-height: 100vh; }
+
+    .page {
+      width: min(100%, 760px);
+      margin: 0 auto;
+      padding: 14px 12px 30px;
+    }
+
+    .title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      margin: 4px 0 6px;
+    }
+
+    .subtitle {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: .9rem;
+      line-height: 1.55;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      margin: 12px 0;
+    }
+
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 1.05rem;
+    }
+
+    .step-badge {
+      display: inline-block;
+      background: #2a2a2a;
+      border: 1px solid #454545;
+      border-radius: 999px;
+      padding: 4px 9px;
+      margin-bottom: 9px;
+      font-size: .75rem;
+      color: #ddd;
+    }
+
+    .field { margin: 12px 0 16px; }
+
+    .field > label,
+    .field .label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 7px;
+      line-height: 1.45;
+    }
+
+    .help {
+      color: var(--muted);
+      font-size: .8rem;
+      margin-top: 5px;
+      line-height: 1.45;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid #454545;
+      border-radius: 12px;
+      background: #101010;
+      color: #fff;
+      padding: 11px 12px;
+      font-size: 16px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 88px;
+      resize: vertical;
+    }
+
+    .choice-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .choice-row.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .choice {
+      position: relative;
+    }
+
+    .choice input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .choice label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      border: 1px solid #454545;
+      border-radius: 12px;
+      background: #101010;
+      padding: 9px 8px;
+      text-align: center;
+      font-size: .92rem;
+      cursor: pointer;
+    }
+
+    .choice input:checked + label {
+      border-color: var(--info);
+      box-shadow: inset 0 0 0 1px var(--info);
+      background: #102331;
+    }
+
+    .camera-wrap {
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #333;
+      background: #000;
+    }
+
+    .stage {
+      position: relative;
+      height: min(64vh, 590px);
+      min-height: 390px;
+      overflow: hidden;
+      background: #000;
+    }
+
+    video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(var(--mirror, 1));
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      transform-origin: center center;
+    }
+
+    .hidden { display: none !important; }
+
+    .camera-note {
+      padding: 9px 10px;
+      font-size: .8rem;
+      color: #d8d8d8;
+      background: #121212;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 10px;
+      background: #111;
+    }
+
+    button,
+    .button-like {
+      appearance: none;
+      border: 1px solid #444;
+      border-radius: 13px;
+      padding: 10px 13px;
+      background: #222;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: .5; cursor: default; }
+    button:active { transform: scale(.98); }
+
+    #shot { border-color: #8a8a8a; }
+    #saveAll {
+      width: 100%;
+      background: var(--accent);
+      border-color: var(--accent);
+      font-size: 1rem;
+      padding: 13px 16px;
+      margin-top: 10px;
+    }
+
+    #saveAll:hover { background: var(--accent2); }
+
+    .preview-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      background: #101010;
+      border-top: 1px solid #2f2f2f;
+    }
+
+    .thumb {
+      width: 108px;
+      height: 108px;
+      object-fit: cover;
+      border-radius: 12px;
+      border: 1px solid #444;
+      background: #000;
+    }
+
+    .preview-meta {
+      flex: 1;
+      min-width: 0;
+      color: var(--muted);
+      font-size: .84rem;
+      line-height: 1.55;
+    }
+
+    #status {
+      margin-top: 12px;
+      min-height: 22px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #111;
+      border: 1px solid #292929;
+      color: #b7ffb7;
+      font-size: .86rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .warning {
+      color: #ffd699;
+      background: #271e0d;
+      border: 1px solid #5b441f;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: .82rem;
+      line-height: 1.5;
+      margin-top: 10px;
+    }
+
+    .result-placeholder {
+      border: 1px dashed #4c4c4c;
+      border-radius: 14px;
+      padding: 13px;
+      color: var(--muted);
+      font-size: .86rem;
+      line-height: 1.55;
+      background: #101010;
+    }
+
+    .small { font-size: .78rem; color: var(--muted); }
+
+    @media (max-width: 480px) {
+      .page { padding-left: 9px; padding-right: 9px; }
+      .card { padding: 12px; border-radius: 15px; }
+      .choice-row.three { grid-template-columns: 1fr; }
+      .stage { min-height: 360px; }
+    }
   </style>
 </head>
+
 <body>
+<div class="page">
+  <div class="title">爪の健康チェック</div>
+  <p class="subtitle">
+    アンケート回答と爪写真を同じレコードとしてSupabaseに保存します。
+    この段階ではAI判定はまだ実行せず、次のステップで接続します。
+  </p>
 
-<section id="cameraScreen" class="screen">
-  <div class="stage">
-    <video id="v" autoplay playsinline></video>
-    <svg id="guide" class="overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none">
-      <rect x="30" y="60" width="940" height="880" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="2" stroke-dasharray="8 10"/>
-      <g id="grid">
-        <line x1="333" y1="60" x2="333" y2="940" stroke="rgba(255,255,255,.15)" stroke-width="2"/>
-        <line x1="666" y1="60" x2="666" y2="940" stroke="rgba(255,255,255,.15)" stroke-width="2"/>
-        <line x1="30" y1="353" x2="970" y2="353" stroke="rgba(255,255,255,.15)" stroke-width="2"/>
-        <line x1="30" y1="646" x2="970" y2="646" stroke="rgba(255,255,255,.15)" stroke-width="2"/>
-      </g>
-      <line x1="500" y1="100" x2="500" y2="900" stroke="rgba(255,255,255,.65)" stroke-width="2"/>
-      <line x1="120" y1="500" x2="880" y2="500" stroke="rgba(255,255,255,.65)" stroke-width="2"/>
-      <ellipse id="nail" cx="500" cy="530" rx="180" ry="260" fill="none" stroke="rgba(0,200,255,.9)" stroke-width="3"/>
-      <line x1="320" y1="380" x2="680" y2="380" stroke="white" stroke-width="2" stroke-dasharray="6 10"/>
-      <line x1="320" y1="680" x2="680" y2="680" stroke="rgba(0,200,255,.9)" stroke-width="2" stroke-dasharray="6 10"/>
-    </svg>
-  </div>
+  <!-- =====================================================
+       STEP 1: アンケート
+       ===================================================== -->
+  <section class="card" id="questionnaireCard">
+    <div class="step-badge">STEP 1 / 3</div>
+    <h2>アンケート</h2>
 
-  <div class="note">爪の先端が上の点線、根元が下の点線に重なるように中央の楕円に合わせてください。</div>
-  <div id="status"></div>
-
-  <div class="controls">
-    <div class="row">
-      <button id="toggleGuide">ガイドON/OFF</button>
-      <button id="rotate">回転90°</button>
-      <label>サイズ:
-        <select id="scale">
-          <option value="1">100%</option>
-          <option value="1.1">110%</option>
-          <option value="1.25">125%</option>
-          <option value="1.5">150%</option>
-        </select>
-      </label>
-      <button id="mirror">ミラー</button>
-    </div>
-    <div class="row">
-      <button id="shot">撮影</button>
-      <button id="nextToQuestions" disabled>質問へ進む</button>
-      <button id="download">端末保存</button>
-      <img id="thumb" class="thumb" alt="撮影画像" />
-    </div>
-  </div>
-</section>
-
-<section id="questionScreen" class="screen hidden">
-  <div class="q-wrap">
-    <h1 class="q-title">撮影情報を入力</h1>
-    <p class="q-sub">撮影した爪の写真に、以下の情報を紐付けて保存します。AI学習用データとして扱いやすいよう、回答は選択式にしています。</p>
-
-    <div class="preview-box">
-      <img id="questionThumb" alt="撮影した爪" />
-      <div class="preview-text">この画像と下記の回答を、同じサンプルIDでSupabaseに保存します。</div>
+    <div class="field">
+      <div class="label">撮影する部位</div>
+      <div class="choice-row">
+        <div class="choice">
+          <input type="radio" name="bodyPart" id="bodyPartHand" value="hand">
+          <label for="bodyPartHand">手の爪</label>
+        </div>
+        <div class="choice">
+          <input type="radio" name="bodyPart" id="bodyPartFoot" value="foot" checked>
+          <label for="bodyPartFoot">足の爪</label>
+        </div>
+      </div>
     </div>
 
-    <form id="questionForm">
-      <div class="q-card">
-        <label class="q-label required" for="ageBand">1. 年齢</label>
-        <select id="ageBand" required>
-          <option value="">選択してください</option>
+    <div class="field">
+      <label for="digit">指・趾</label>
+      <select id="digit">
+        <option value="unknown">選択しない</option>
+        <option value="1">第1指・母趾</option>
+        <option value="2">第2指・第2趾</option>
+        <option value="3">第3指・第3趾</option>
+        <option value="4">第4指・第4趾</option>
+        <option value="5">第5指・第5趾</option>
+        <option value="multiple">複数の爪</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <div class="label">痛みがありますか？</div>
+      <div class="choice-row three">
+        <div class="choice"><input type="radio" name="pain" id="painNo" value="no" checked><label for="painNo">なし</label></div>
+        <div class="choice"><input type="radio" name="pain" id="painMild" value="mild"><label for="painMild">軽い</label></div>
+        <div class="choice"><input type="radio" name="pain" id="painStrong" value="strong"><label for="painStrong">強い</label></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">歩行時・靴を履いた時に支障がありますか？</div>
+      <div class="choice-row">
+        <div class="choice"><input type="radio" name="walkingDifficulty" id="walkNo" value="no" checked><label for="walkNo">なし</label></div>
+        <div class="choice"><input type="radio" name="walkingDifficulty" id="walkYes" value="yes"><label for="walkYes">あり</label></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">現在、出血がありますか？</div>
+      <div class="choice-row">
+        <div class="choice"><input type="radio" name="bleeding" id="bleedNo" value="no" checked><label for="bleedNo">なし</label></div>
+        <div class="choice"><input type="radio" name="bleeding" id="bleedYes" value="yes"><label for="bleedYes">あり</label></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">膿・浸出液がありますか？</div>
+      <div class="choice-row">
+        <div class="choice"><input type="radio" name="exudate" id="exudateNo" value="no" checked><label for="exudateNo">なし</label></div>
+        <div class="choice"><input type="radio" name="exudate" id="exudateYes" value="yes"><label for="exudateYes">あり</label></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">爪の周囲に赤み・腫れがありますか？</div>
+      <div class="choice-row">
+        <div class="choice"><input type="radio" name="rednessSwelling" id="redNo" value="no" checked><label for="redNo">なし</label></div>
+        <div class="choice"><input type="radio" name="rednessSwelling" id="redYes" value="yes"><label for="redYes">あり</label></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">糖尿病がありますか？</div>
+      <div class="choice-row three">
+        <div class="choice"><input type="radio" name="diabetes" id="dmNo" value="no" checked><label for="dmNo">なし</label></div>
+        <div class="choice"><input type="radio" name="diabetes" id="dmYes" value="yes"><label for="dmYes">あり</label></div>
+        <div class="choice"><input type="radio" name="diabetes" id="dmUnknown" value="unknown"><label for="dmUnknown">不明</label></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">透析中ですか？</div>
+      <div class="choice-row">
+        <div class="choice"><input type="radio" name="dialysis" id="dialysisNo" value="no" checked><label for="dialysisNo">いいえ</label></div>
+        <div class="choice"><input type="radio" name="dialysis" id="dialysisYes" value="yes"><label for="dialysisYes">はい</label></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">末梢循環不良・血流障害を指摘されていますか？</div>
+      <div class="choice-row three">
+        <div class="choice"><input type="radio" name="circulation" id="circulationNo" value="no" checked><label for="circulationNo">なし</label></div>
+        <div class="choice"><input type="radio" name="circulation" id="circulationYes" value="yes"><label for="circulationYes">あり</label></div>
+        <div class="choice"><input type="radio" name="circulation" id="circulationUnknown" value="unknown"><label for="circulationUnknown">不明</label></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">血液を固まりにくくする薬（抗凝固薬等）を使用していますか？</div>
+      <div class="choice-row three">
+        <div class="choice"><input type="radio" name="anticoagulant" id="antiNo" value="no" checked><label for="antiNo">なし</label></div>
+        <div class="choice"><input type="radio" name="anticoagulant" id="antiYes" value="yes"><label for="antiYes">あり</label></div>
+        <div class="choice"><input type="radio" name="anticoagulant" id="antiUnknown" value="unknown"><label for="antiUnknown">不明</label></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">免疫が低下する病気・治療がありますか？</div>
+      <div class="choice-row three">
+        <div class="choice"><input type="radio" name="immuneSuppression" id="immuneNo" value="no" checked><label for="immuneNo">なし</label></div>
+        <div class="choice"><input type="radio" name="immuneSuppression" id="immuneYes" value="yes"><label for="immuneYes">あり</label></div>
+        <div class="choice"><input type="radio" name="immuneSuppression" id="immuneUnknown" value="unknown"><label for="immuneUnknown">不明</label></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">爪白癬・足白癬の診断や治療歴がありますか？</div>
+      <div class="choice-row three">
+        <div class="choice"><input type="radio" name="tineaHistory" id="tineaNo" value="no" checked><label for="tineaNo">なし</label></div>
+        <div class="choice"><input type="radio" name="tineaHistory" id="tineaYes" value="yes"><label for="tineaYes">あり</label></div>
+        <div class="choice"><input type="radio" name="tineaHistory" id="tineaUnknown" value="unknown"><label for="tineaUnknown">不明</label></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="onset">爪の変化はいつ頃からですか？</label>
+      <select id="onset">
+        <option value="unknown">不明・選択しない</option>
+        <option value="lt1m">1か月未満</option>
+        <option value="1to3m">1〜3か月</option>
+        <option value="3to6m">3〜6か月</option>
+        <option value="6to12m">6〜12か月</option>
+        <option value="gte1y">1年以上</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <div class="label">自分で爪を切れますか？</div>
+      <div class="choice-row">
+        <div class="choice"><input type="radio" name="canCutNail" id="cutYes" value="yes" checked><label for="cutYes">切れる</label></div>
+        <div class="choice"><input type="radio" name="canCutNail" id="cutNo" value="no"><label for="cutNo">難しい</label></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="freeNote">その他のメモ（任意）</label>
+      <textarea id="freeNote" placeholder="気になることがあれば入力してください"></textarea>
+    </div>
+  </section>
+
+  <!-- =====================================================
+       STEP 2: 撮影
+       ===================================================== -->
+  <section class="card">
+    <div class="step-badge">STEP 2 / 3</div>
+    <h2>爪の写真を撮影</h2>
+
+    <div class="camera-wrap">
+      <div class="stage">
+        <video id="v" autoplay playsinline></video>
+
+        <svg id="guide" class="overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none">
+          <rect x="30" y="60" width="940" height="880" fill="none"
+                stroke="rgba(255,255,255,.25)" stroke-width="2" stroke-dasharray="8 10" />
+
+          <g id="grid">
+            <line x1="333" y1="60" x2="333" y2="940" stroke="rgba(255,255,255,.15)" stroke-width="2" />
+            <line x1="666" y1="60" x2="666" y2="940" stroke="rgba(255,255,255,.15)" stroke-width="2" />
+            <line x1="30" y1="353" x2="970" y2="353" stroke="rgba(255,255,255,.15)" stroke-width="2" />
+            <line x1="30" y1="646" x2="970" y2="646" stroke="rgba(255,255,255,.15)" stroke-width="2" />
+          </g>
+
+          <line x1="500" y1="100" x2="500" y2="900" stroke="rgba(255,255,255,.65)" stroke-width="2" />
+          <line x1="120" y1="500" x2="880" y2="500" stroke="rgba(255,255,255,.65)" stroke-width="2" />
+
+          <ellipse id="nail" cx="500" cy="530" rx="180" ry="260" fill="none"
+                   stroke="rgba(0,200,255,.9)" stroke-width="3" />
+
+          <line x1="320" y1="380" x2="680" y2="380" stroke="white" stroke-width="2" stroke-dasharray="6 10" />
+          <line x1="320" y1="680" x2="680" y2="680" stroke="rgba(0,200,255,.9)" stroke-width="2" stroke-dasharray="6 10" />
+        </svg>
+      </div>
+
+      <div class="camera-note">
+        爪の先端が上の点線、根元が下の点線に近づくように中央へ合わせてください。
+        明るい場所で、爪と周囲の皮膚が見えるように撮影してください。
+      </div>
+
+      <div class="controls">
+        <button id="toggleGuide" type="button">ガイドOFF</button>
+        <button id="rotate" type="button">回転90°</button>
+        <select id="scale" aria-label="ガイドサイズ">
+          <option value="1">ガイド100%</option>
+          <option value="1.1">ガイド110%</option>
+          <option value="1.25">ガイド125%</option>
+          <option value="1.5">ガイド150%</option>
         </select>
+        <button id="mirror" type="button">ミラー</button>
+        <button id="shot" type="button">撮影</button>
       </div>
 
-      <div class="q-card">
-        <span class="q-label required">2. 性別</span>
-        <div class="choices three">
-          <label class="choice"><input type="radio" name="sex" value="male" required><span>男性</span></label>
-          <label class="choice"><input type="radio" name="sex" value="female"><span>女性</span></label>
-          <label class="choice"><input type="radio" name="sex" value="prefer_not_to_say"><span>回答しない</span></label>
+      <div class="preview-row">
+        <img id="thumb" class="thumb" alt="撮影画像プレビュー" />
+        <div class="preview-meta" id="previewMeta">
+          まだ撮影されていません。<br>
+          撮影後、この欄にプレビューが表示されます。
         </div>
       </div>
+    </div>
+  </section>
 
-      <div class="q-card">
-        <span class="q-label required">3. 爪のトラブルがありますか？</span>
-        <div class="choices">
-          <label class="choice"><input type="radio" name="nailTrouble" value="yes" required><span>ある</span></label>
-          <label class="choice"><input type="radio" name="nailTrouble" value="no"><span>ない</span></label>
-        </div>
-      </div>
+  <!-- =====================================================
+       STEP 3: 保存
+       ===================================================== -->
+  <section class="card">
+    <div class="step-badge">STEP 3 / 3</div>
+    <h2>写真とアンケートを保存</h2>
 
-      <div class="q-card">
-        <label class="q-label required" for="prefecture">4. お住まいの都道府県</label>
-        <select id="prefecture" required>
-          <option value="">選択してください</option>
-        </select>
-        <div id="tokyoAreaBox" class="hidden" style="margin-top:10px;">
-          <label class="q-label required" for="tokyoArea">東京都内の地域</label>
-          <select id="tokyoArea">
-            <option value="">選択してください</option>
-            <option value="23ku">23区</option>
-            <option value="tama">多摩地区</option>
-          </select>
-        </div>
-      </div>
+    <div class="warning">
+      この段階ではAIによる診断は行いません。保存された写真とアンケートを、次の開発ステップでAI推論APIへ接続します。
+    </div>
 
-      <div class="q-card">
-        <span class="q-label required">5. 爪に負荷がかかるスポーツ、または楽器演奏をしていますか？</span>
-        <div class="choices">
-          <label class="choice"><input type="radio" name="nailLoadActivity" value="yes" required><span>している</span></label>
-          <label class="choice"><input type="radio" name="nailLoadActivity" value="no"><span>していない</span></label>
-        </div>
-      </div>
+    <button id="saveAll" type="button">写真とアンケートをSupabaseへ保存</button>
+    <div id="status">準備中...</div>
+  </section>
 
-      <div class="q-card">
-        <span class="q-label required">6. 白癬症の治療薬を使用していますか？</span>
-        <div class="choices">
-          <label class="choice"><input type="radio" name="antifungalMedication" value="yes" required><span>使用している</span></label>
-          <label class="choice"><input type="radio" name="antifungalMedication" value="no"><span>使用していない</span></label>
-        </div>
-      </div>
+  <section class="card">
+    <h2>AI判定結果（次のステップ）</h2>
+    <div class="result-placeholder" id="aiResult">
+      現在は未接続です。次のステップで、保存した画像とアンケートをAIモデルへ渡し、
+      「推奨アクション」と「メモ」をここに自動表示するようにします。
+    </div>
+  </section>
+</div>
 
-      <div class="q-card">
-        <span class="q-label required">7. 撮影した部位</span>
-        <div class="choices">
-          <label class="choice"><input type="radio" name="limb" value="right_hand" required><span>右手指</span></label>
-          <label class="choice"><input type="radio" name="limb" value="left_hand"><span>左手指</span></label>
-          <label class="choice"><input type="radio" name="limb" value="right_foot"><span>右足指</span></label>
-          <label class="choice"><input type="radio" name="limb" value="left_foot"><span>左足指</span></label>
-        </div>
-      </div>
-
-      <div class="q-card">
-        <span class="q-label required">8. 撮影した指</span>
-        <div class="choices">
-          <label class="choice"><input type="radio" name="digit" value="thumb" required><span>親指</span></label>
-          <label class="choice"><input type="radio" name="digit" value="index"><span>人差し指</span></label>
-          <label class="choice"><input type="radio" name="digit" value="middle"><span>中指</span></label>
-          <label class="choice"><input type="radio" name="digit" value="ring"><span>薬指</span></label>
-          <label class="choice"><input type="radio" name="digit" value="little"><span>小指</span></label>
-        </div>
-      </div>
-
-      <div class="q-card">
-        <label class="consent">
-          <input type="checkbox" id="aiConsent" required>
-          <span>撮影画像と回答情報を、爪の状態に関するAIモデルの研究・開発・性能改善に利用することに同意します。</span>
-        </label>
-      </div>
-
-      <div class="action-row">
-        <button type="button" id="backToCamera">撮り直す</button>
-        <button type="submit" id="submitSample">回答して保存</button>
-      </div>
-      <div id="formStatus"></div>
-    </form>
-  </div>
-</section>
-
+<!-- 撮影・トリミング用Canvas -->
 <canvas id="work" style="display:none"></canvas>
 
 <script>
-/* ===== Supabase / LIFF ===== */
+/* =========================================================
+   0. 重要設定
+   ========================================================= */
+
 const SUPABASE_URL = "https://zsaqzwxuheqpzhlndjac.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_XUxyvjJuEOw3892kmFmdHQ_bZdAgFT3";
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-const BUCKET_NAME = "nail-image";
-const SAMPLE_TABLE = "nail_samples";
 const LIFF_ID = "2007511299-b8maVL7l";
 
-async function initializeLiff() {
-  try {
-    await liff.init({ liffId: LIFF_ID });
-    console.log("LIFF initialized", { inClient: liff.isInClient() });
-  } catch (error) {
-    console.error("LIFF initialization failed", error);
-  }
-}
-initializeLiff();
+const STORAGE_BUCKET = "nail-image";
+const ASSESSMENT_TABLE = "nail_assessments";
 
-/* ===== Master data ===== */
-const prefectures = [
-  "北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県",
-  "茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
-  "新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県",
-  "三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県",
-  "鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県",
-  "福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"
-];
+const supabaseClient = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
 
-const ageBands = ["0-5歳"];
-for (let start = 6; start <= 96; start += 5) {
-  ageBands.push(`${start}-${Math.min(start + 4, 100)}歳`);
-}
+/* =========================================================
+   1. DOM
+   ========================================================= */
 
-const ageBandSelect = document.getElementById("ageBand");
-ageBands.forEach(label => {
-  const option = document.createElement("option");
-  option.value = label.replace("歳", "");
-  option.textContent = label;
-  ageBandSelect.appendChild(option);
-});
-
-const prefectureSelect = document.getElementById("prefecture");
-prefectures.forEach(name => {
-  const option = document.createElement("option");
-  option.value = name;
-  option.textContent = name;
-  prefectureSelect.appendChild(option);
-});
-
-const tokyoAreaBox = document.getElementById("tokyoAreaBox");
-const tokyoArea = document.getElementById("tokyoArea");
-prefectureSelect.addEventListener("change", () => {
-  const isTokyo = prefectureSelect.value === "東京都";
-  tokyoAreaBox.classList.toggle("hidden", !isTokyo);
-  tokyoArea.required = isTokyo;
-  if (!isTokyo) tokyoArea.value = "";
-});
-
-/* ===== DOM ===== */
-const cameraScreen = document.getElementById("cameraScreen");
-const questionScreen = document.getElementById("questionScreen");
 const v = document.getElementById("v");
 const guide = document.getElementById("guide");
 const work = document.getElementById("work");
 const thumb = document.getElementById("thumb");
-const questionThumb = document.getElementById("questionThumb");
+const previewMeta = document.getElementById("previewMeta");
 const statusText = document.getElementById("status");
-const formStatus = document.getElementById("formStatus");
+
 const btnToggle = document.getElementById("toggleGuide");
 const btnRotate = document.getElementById("rotate");
 const btnMirror = document.getElementById("mirror");
 const selScale = document.getElementById("scale");
 const btnShot = document.getElementById("shot");
-const btnNext = document.getElementById("nextToQuestions");
-const btnDownload = document.getElementById("download");
-const backToCamera = document.getElementById("backToCamera");
-const questionForm = document.getElementById("questionForm");
-const submitSample = document.getElementById("submitSample");
+const btnSaveAll = document.getElementById("saveAll");
+
+/* =========================================================
+   2. 状態
+   ========================================================= */
 
 let rotation = 0;
 let scale = 1.0;
 let mirrored = false;
 let capturedDataUrl = null;
-let cameraStream = null;
+let lineUserId = null;
+let liffReady = false;
 
-/* ===== Camera ===== */
+/* =========================================================
+   3. LIFF初期化
+   ========================================================= */
+
+async function initializeLiff() {
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    liffReady = true;
+
+    if (liff.isLoggedIn()) {
+      try {
+        const profile = await liff.getProfile();
+        lineUserId = profile.userId || null;
+      } catch (profileError) {
+        console.warn("LINE profile could not be read:", profileError);
+      }
+    }
+
+    console.log("LIFF initialized", {
+      inClient: liff.isInClient(),
+      lineUserId
+    });
+  } catch (error) {
+    console.error("LIFF initialization failed", error);
+  }
+}
+
+/* =========================================================
+   4. カメラ起動
+   ========================================================= */
+
 async function startCamera() {
   try {
-    cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode:"environment", width:{ideal:1920}, height:{ideal:1080} },
-      audio:false
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("このブラウザではカメラ機能を利用できません。");
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      },
+      audio: false
     });
-    v.srcObject = cameraStream;
+
+    v.srcObject = stream;
+    statusText.textContent = "カメラの準備ができました。アンケート回答後、爪を撮影してください。";
   } catch (error) {
+    console.error(error);
+    statusText.textContent = "カメラ起動に失敗しました: " + error.message;
     alert("カメラ起動に失敗しました: " + error.message);
   }
 }
-startCamera();
+
+/* =========================================================
+   5. ガイド操作
+   ========================================================= */
+
+function applyGuideTransform() {
+  guide.style.transform = `rotate(${rotation}deg) scale(${scale})`;
+}
 
 btnToggle.addEventListener("click", () => {
   guide.classList.toggle("hidden");
-  btnToggle.textContent = guide.classList.contains("hidden") ? "ガイドON" : "ガイドOFF";
+  btnToggle.textContent = guide.classList.contains("hidden")
+    ? "ガイドON"
+    : "ガイドOFF";
 });
 
 btnRotate.addEventListener("click", () => {
   rotation = (rotation + 90) % 360;
-  guide.style.transform = `rotate(${rotation}deg) scale(${scale})`;
+  applyGuideTransform();
 });
 
 selScale.addEventListener("change", () => {
   scale = parseFloat(selScale.value);
-  guide.style.transform = `rotate(${rotation}deg) scale(${scale})`;
+  applyGuideTransform();
 });
 
 btnMirror.addEventListener("click", () => {
@@ -339,84 +690,122 @@ btnMirror.addEventListener("click", () => {
   v.style.setProperty("--mirror", mirrored ? "-1" : "1");
 });
 
-btnShot.addEventListener("click", () => {
-  const vw = v.videoWidth, vh = v.videoHeight;
-  if (!vw || !vh) return alert("カメラ準備中です。少し待ってから再試行してください。");
+/* =========================================================
+   6. 撮影
+   ========================================================= */
 
-  const outW = 1080, outH = 1440;
-  work.width = outW; work.height = outH;
+btnShot.addEventListener("click", () => {
+  const vw = v.videoWidth;
+  const vh = v.videoHeight;
+
+  if (!vw || !vh) {
+    alert("カメラ準備中です。少し待ってから再試行してください。");
+    return;
+  }
+
+  const outW = 1080;
+  const outH = 1440;
+
+  work.width = outW;
+  work.height = outH;
+
   const ctx = work.getContext("2d");
+
   ctx.save();
   ctx.fillStyle = "#000";
-  ctx.fillRect(0,0,outW,outH);
-  ctx.translate(outW/2,outH/2);
-  if (rotation) ctx.rotate(rotation * Math.PI/180);
-  if (mirrored) ctx.scale(-1,1);
+  ctx.fillRect(0, 0, outW, outH);
+  ctx.translate(outW / 2, outH / 2);
 
-  const videoRatio = vw/vh;
-  const canvasRatio = outW/outH;
-  let dw,dh;
-  if (videoRatio > canvasRatio) { dh = outH; dw = dh * videoRatio; }
-  else { dw = outW; dh = dw / videoRatio; }
-  ctx.drawImage(v,-dw/2,-dh/2,dw,dh);
+  if (rotation) {
+    ctx.rotate(rotation * Math.PI / 180);
+  }
+
+  if (mirrored) {
+    ctx.scale(-1, 1);
+  }
+
+  const videoRatio = vw / vh;
+  const canvasRatio = outW / outH;
+
+  let dw;
+  let dh;
+
+  if (videoRatio > canvasRatio) {
+    dh = outH;
+    dw = dh * videoRatio;
+  } else {
+    dw = outW;
+    dh = dw / videoRatio;
+  }
+
+  ctx.drawImage(v, -dw / 2, -dh / 2, dw, dh);
   ctx.restore();
 
-  const rx = 180, ry = 260;
+  // 現在のガイド中央を基準に爪領域を切り出す
+  const rx = 180;
+  const ry = 260;
+
   const cropRect = {
-    x:Math.round((500-rx)/1000*outW),
-    y:Math.round((530-ry)/1000*outH),
-    w:Math.round((2*rx)/1000*outW),
-    h:Math.round((2*ry)/1000*outH)
+    x: Math.round((500 - rx) / 1000 * outW),
+    y: Math.round((530 - ry) / 1000 * outH),
+    w: Math.round((2 * rx) / 1000 * outW),
+    h: Math.round((2 * ry) / 1000 * outH)
   };
-  const sq = Math.max(cropRect.w,cropRect.h);
+
+  const sq = Math.max(cropRect.w, cropRect.h);
   const out2 = document.createElement("canvas");
-  out2.width = 1024; out2.height = 1024;
+  out2.width = 1024;
+  out2.height = 1024;
+
   const c2 = out2.getContext("2d");
+  c2.fillStyle = "#000";
+  c2.fillRect(0, 0, 1024, 1024);
   c2.imageSmoothingEnabled = true;
+  c2.imageSmoothingQuality = "high";
+
+  const destW = cropRect.w * 1024 / sq;
+  const destH = cropRect.h * 1024 / sq;
+  const destX = (1024 - destW) / 2;
+  const destY = (1024 - destH) / 2;
+
   c2.drawImage(
-    work,cropRect.x,cropRect.y,cropRect.w,cropRect.h,
-    (1024-(cropRect.w*1024/sq))/2,
-    (1024-(cropRect.h*1024/sq))/2,
-    cropRect.w*1024/sq,
-    cropRect.h*1024/sq
+    work,
+    cropRect.x,
+    cropRect.y,
+    cropRect.w,
+    cropRect.h,
+    destX,
+    destY,
+    destW,
+    destH
   );
 
-  capturedDataUrl = out2.toDataURL("image/png",1.0);
+  // JPEGにして容量を抑える。AI学習にも扱いやすい。
+  capturedDataUrl = out2.toDataURL("image/jpeg", 0.92);
+
   thumb.src = capturedDataUrl;
-  thumb.style.display = "block";
-  questionThumb.src = capturedDataUrl;
-  btnNext.disabled = false;
-  statusText.textContent = "撮影しました。画像を確認して「質問へ進む」を押してください。";
+  previewMeta.innerHTML =
+    "撮影しました。<br>画像は1024×1024 JPEGとして保存されます。<br>問題なければSTEP 3へ進んでください。";
+
+  statusText.textContent = "撮影しました。次に「写真とアンケートをSupabaseへ保存」を押してください。";
 });
 
-btnNext.addEventListener("click", () => {
-  if (!capturedDataUrl) return alert("まず撮影してください。");
-  cameraScreen.classList.add("hidden");
-  questionScreen.classList.remove("hidden");
-  window.scrollTo(0,0);
-});
-
-backToCamera.addEventListener("click", () => {
-  questionScreen.classList.add("hidden");
-  cameraScreen.classList.remove("hidden");
-  window.scrollTo(0,0);
-});
-
-btnDownload.addEventListener("click", () => {
-  if (!capturedDataUrl) return alert("まず撮影してください。");
-  const a = document.createElement("a");
-  a.href = capturedDataUrl;
-  a.download = "nail.png";
-  a.click();
-});
+/* =========================================================
+   7. Utility
+   ========================================================= */
 
 function dataURLtoBlob(dataUrl) {
   const parts = dataUrl.split(",");
-  const mime = (parts[0].match(/:(.*?);/) || [])[1] || "image/png";
+  const mimeMatch = parts[0].match(/:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
   const binary = atob(parts[1]);
   const array = new Uint8Array(binary.length);
-  for (let i=0;i<binary.length;i++) array[i] = binary.charCodeAt(i);
-  return new Blob([array],{type:mime});
+
+  for (let i = 0; i < binary.length; i++) {
+    array[i] = binary.charCodeAt(i);
+  }
+
+  return new Blob([array], { type: mime });
 }
 
 function radioValue(name) {
@@ -424,65 +813,151 @@ function radioValue(name) {
   return el ? el.value : null;
 }
 
-/* ===== Save image + metadata ===== */
-questionForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (!questionForm.reportValidity()) return;
-  if (!capturedDataUrl) return alert("撮影画像がありません。撮影画面に戻ってください。");
-
-  const sampleId = crypto.randomUUID();
-  const imagePath = `samples/${sampleId}.png`;
-  const blob = dataURLtoBlob(capturedDataUrl);
-
-  const row = {
-    id: sampleId,
-    image_bucket: BUCKET_NAME,
-    image_path: imagePath,
-    age_band: ageBandSelect.value,
-    sex: radioValue("sex"),
-    nail_trouble: radioValue("nailTrouble") === "yes",
-    prefecture: prefectureSelect.value,
-    tokyo_area: prefectureSelect.value === "東京都" ? tokyoArea.value : null,
-    nail_load_activity: radioValue("nailLoadActivity") === "yes",
-    antifungal_medication: radioValue("antifungalMedication") === "yes",
-    limb: radioValue("limb"),
-    digit: radioValue("digit"),
-    ai_training_consent: document.getElementById("aiConsent").checked,
-    consent_version: "2026-09-23-v1"
+function getQuestionnaire() {
+  return {
+    body_part: radioValue("bodyPart"),
+    digit: document.getElementById("digit").value,
+    pain: radioValue("pain"),
+    walking_difficulty: radioValue("walkingDifficulty"),
+    bleeding: radioValue("bleeding"),
+    exudate_or_pus: radioValue("exudate"),
+    redness_or_swelling: radioValue("rednessSwelling"),
+    diabetes: radioValue("diabetes"),
+    dialysis: radioValue("dialysis"),
+    poor_circulation: radioValue("circulation"),
+    anticoagulant: radioValue("anticoagulant"),
+    immune_suppression: radioValue("immuneSuppression"),
+    tinea_history: radioValue("tineaHistory"),
+    onset: document.getElementById("onset").value,
+    can_cut_nail: radioValue("canCutNail"),
+    free_note: document.getElementById("freeNote").value.trim()
   };
+}
 
-  submitSample.disabled = true;
-  submitSample.textContent = "保存中...";
-  formStatus.className = "";
-  formStatus.textContent = "画像と回答を保存しています...";
+function makeRecordId() {
+  if (window.crypto && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
 
-  let uploaded = false;
+  return (
+    Date.now().toString(36) + "-" +
+    Math.random().toString(36).slice(2) + "-" +
+    Math.random().toString(36).slice(2)
+  );
+}
+
+function extFromBlob(blob) {
+  if (blob.type === "image/png") return "png";
+  return "jpg";
+}
+
+/* =========================================================
+   8. 写真 + アンケートをSupabaseへ保存
+   ========================================================= */
+
+btnSaveAll.addEventListener("click", async () => {
+  if (!capturedDataUrl) {
+    alert("先に爪の写真を撮影してください。");
+    return;
+  }
+
+  const questionnaire = getQuestionnaire();
+
+  if (!questionnaire.body_part) {
+    alert("撮影する部位を選択してください。");
+    return;
+  }
+
+  btnSaveAll.disabled = true;
+  btnSaveAll.textContent = "保存中...";
+  statusText.textContent = "写真をSupabase Storageへ保存しています...";
+
   try {
-    const { error: uploadError } = await supabaseClient.storage
-      .from(BUCKET_NAME)
-      .upload(imagePath, blob, { contentType:"image/png", upsert:false });
-    if (uploadError) throw uploadError;
-    uploaded = true;
+    const recordId = makeRecordId();
+    const blob = dataURLtoBlob(capturedDataUrl);
+    const ext = extFromBlob(blob);
+
+    // 例: assessments/uuid/front.jpg
+    const imagePath = `assessments/${recordId}/front.${ext}`;
+
+    // 1) Storageへ画像保存
+    const { data: uploadData, error: uploadError } = await supabaseClient
+      .storage
+      .from(STORAGE_BUCKET)
+      .upload(imagePath, blob, {
+        contentType: blob.type,
+        upsert: false
+      });
+
+    if (uploadError) {
+      throw new Error("画像保存エラー: " + uploadError.message);
+    }
+
+    statusText.textContent = "写真保存完了。アンケートをDatabaseへ保存しています...";
+
+    // Public bucketの場合のみ利用できる表示用URL
+    const { data: publicUrlData } = supabaseClient
+      .storage
+      .from(STORAGE_BUCKET)
+      .getPublicUrl(imagePath);
+
+    const imageUrl = publicUrlData?.publicUrl || null;
+
+    // 2) Databaseへ1レコードとして保存
+    const row = {
+      id: recordId,
+      line_user_id: lineUserId,
+      image_path: imagePath,
+      image_url: imageUrl,
+      image_type: "front",
+      body_part: questionnaire.body_part,
+      digit: questionnaire.digit,
+      questionnaire: questionnaire,
+      processing_status: "uploaded",
+      recommended_action: null,
+      memo: null,
+      model_version: null
+    };
 
     const { error: insertError } = await supabaseClient
-      .from(SAMPLE_TABLE)
+      .from(ASSESSMENT_TABLE)
       .insert(row);
-    if (insertError) throw insertError;
 
-    formStatus.className = "success";
-    formStatus.textContent = "✓ 写真と回答を保存しました。ご協力ありがとうございます。";
-    submitSample.textContent = "保存完了";
+    if (insertError) {
+      // Database保存に失敗した場合、Storageに孤児画像が残る可能性がある。
+      // 初心者向けv1ではまずエラー表示し、次回cleanup処理を追加する。
+      throw new Error("アンケート保存エラー: " + insertError.message);
+    }
+
+    console.log("Saved image:", uploadData);
+    console.log("Saved assessment record:", recordId);
+
+    statusText.textContent =
+      "✓ 保存完了\n" +
+      `Record ID: ${recordId}\n` +
+      "写真とアンケートが同じレコードに紐づきました。";
+
+    alert("写真とアンケートの保存が完了しました。");
+
   } catch (error) {
     console.error(error);
-    if (uploaded) {
-      try { await supabaseClient.storage.from(BUCKET_NAME).remove([imagePath]); } catch (_) {}
-    }
-    formStatus.className = "error";
-    formStatus.textContent = "保存に失敗しました: " + error.message;
-    submitSample.disabled = false;
-    submitSample.textContent = "回答して保存";
+    statusText.textContent = "保存に失敗しました。\n" + error.message;
+    alert("保存に失敗しました: " + error.message);
+  } finally {
+    btnSaveAll.disabled = false;
+    btnSaveAll.textContent = "写真とアンケートをSupabaseへ保存";
   }
 });
+
+/* =========================================================
+   9. 起動
+   ========================================================= */
+
+(async function boot() {
+  statusText.textContent = "初期化しています...";
+  await initializeLiff();
+  await startCamera();
+})();
 </script>
 </body>
 </html>
